@@ -23,7 +23,6 @@ class Users extends CI_Controller
         $this->load->model('Global_model');
         $this->load->helper('ajax_helper');
         $this->load->library('bcrypt');
-        setup_ajax();
     }
 
     /*get users data
@@ -35,11 +34,10 @@ class Users extends CI_Controller
 	*/
     public function get_user()
     {
-        echo json_encode([
-            "data" => [
-                "result" => $this->Global_model->select('users')->result()
-            ]
-        ]);
+        if (empty($this->session->userdata('user'))) {
+            response_ajax('not login');
+        }
+        response_ajax($this->Global_model->select('users')->result());
     }
 
     /*add users data
@@ -51,25 +49,65 @@ class Users extends CI_Controller
 	*/
     public function add_user()
     {
+        if (empty($this->session->userdata('user'))) {
+            response_ajax('not login');
+        }
         $data = $this->input->post();
         $data['user_password'] = $this->bcrypt->hash_password($data['user_password']);
-        echo json_encode([
-            "data" => [
-                "result" => $this->Global_model->insert('users', $data),
-            ]
-        ]);
+        response_ajax($this->Global_model->insert('users', $data));
     }
 
-    /*add auth data
-	* @name auth_user
-	* @input   auth $data
-	* @output  auth user query  
+    /*update users data
+	* @name update_user
+	* @input   insert $data
+	* @output  users insert query  
 	* @author Supak Pukdam
 	* @Create Date 2564-06-13
 	*/
-    public function auth_user()
+    public function update_user()
     {
- 
+        if (empty($this->session->userdata('user'))) {
+            response_ajax('not login');
+        }
+        $data = $this->input->post();
+        $data['user_password'] = $this->bcrypt->hash_password($data['user_password']);
+        response_ajax($this->Global_model->update('users',  $data, [$this->input->get()]));
+    }
+
+    /*login to system
+	* @name login_user
+	* @input   login $data
+	* @output  login user query  
+	* @author Supak Pukdam
+	* @Create Date 2564-06-13
+	*/
+    public function login_user()
+    {
+        $select_user = $this->Global_model->select('users', [['user_username' => $this->input->post('user_username')]])->result()[0];
+
+        if ($this->bcrypt->check_password($this->input->post('user_password'), $select_user->user_password)) {
+            unset($select_user->user_password);
+            $this->session->set_userdata('user', $select_user);
+            response_ajax($this->session);
+        } else {
+            response_ajax("Not found");
+        }
+    }
+
+    /*logout to system
+	* @name logout_user
+	* @input   logout $data
+	* @output  logout user query  
+	* @author Supak Pukdam
+	* @Create Date 2564-06-13
+	*/
+    public function logout_user()
+    {
+        if (empty($this->session->userdata('user'))) {
+            response_ajax('not login');
+        }
+        $this->session->sess_destroy();
+        response_ajax($this->session->userdata('user'));
     }
 }
 /* End of file Users.php */
